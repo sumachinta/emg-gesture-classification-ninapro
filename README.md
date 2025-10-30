@@ -1,14 +1,48 @@
 # NinaPro DB2 EMG Gesture Classification
 
-This repository implements an end-to-end machine learning and deep learning pipeline for decoding **hand and finger gestures from surface EMG (sEMG)** signals using the **NinaPro DB2 dataset**.
+This repository implements an end-to-end ML and deep learning pipeline for decoding **hand and finger gestures from surface EMG (sEMG)** signals using the **NinaPro DB2 dataset**.
 
-The goal of this project is to reproduce and extend classical EMG decoding workflows — from preprocessing and feature extraction to deep neural network classifiers — and benchmark them on gesture recognition accuracy.
+The goal of this project is to reproduce and extend classical EMG decoding workflows from preprocessing and feature extraction to deep neural network classifiers and benchmark them on gesture recognition accuracy.
 
 ---
 
-## 🧠 Project Overview
+## Acquisition setup
 
-Electromyography (EMG) captures the electrical activity produced by skeletal muscles.  
+1. sEMG data are acquired using 12 Delsys Trigno electrodes
+2. kinematic data are acquired using a Cyberglove 2 data glove
+
+## 📂 Dataset — NinaPro DB2
+
+**Source:** [NinaPro (Non-Invasive Adaptive Prosthetics)](https://ninapro.hevs.ch/instructions/DB2.html)  
+**Subjects:** 40
+**Exercises:** 3
+**Exercise 1:** Basic movements of the fingers
+**Exercise 2:** Grasping and functional movements
+**Exercise 3:** Force patterns
+**Total number of hand movements:** 49 
+**Sensors:** 12-channel Delsys Trigno sEMG  
+**Sampling rate:** 2 kHz  
+**Duration:** ~5 seconds per repetition, followed by 3 second rest
+**Repetitions:** 6 reps per gesture  
+
+## Dataset variables
+
+**Subject:** subject number
+**Exercise:** exercise number
+**Emg (12 columns):** sEMG signal. Columns 1-8 are the electrodes equally spaced around the forearm at the height of the radio humeral joint. Columns 9 and 10 contain signals from the main activity spot of the muscles flexor and extensor digitorum superficialis, while columns 11 and 12 contain signals from the main activity spot of the muscles biceps brachii and triceps brachii
+**Acc (36 columns):** three-axes accelerometers of the 12 electrodes
+**Glove (22 columns):** uncalibrated signal from the 22 sensors of the cyberglove
+The cyberglove signal corresponds to raw data from the cyberglove sensors, which are expected to be proportional to the angles at the joints
+**Stimulus (1 column):** the movement repeated by the subject, according to the displayed movie
+**Restimulus (1 column):** again the movement repeated by the subject, but with the duration of the movement label refined a-posteriori in order to better correspond to the real movement. Read the paper Gijsberts et al., 2014 for more details about relabelling procedure
+**Repetition (1 column):** repetition of the stimulus
+**Rerepetition (1 column):** repetition of restimulus
+**Force (6 columns):** force recorded during the third exercise
+**forcecal (2 x 6 values):** the force sensors calibration values, corresponding to the minimal and the maximal force
+
+---
+
+## Project Overview
 In this project, we use multi-channel EMG signals to **classify hand gestures** in the NinaPro DB2 dataset.
 
 We develop two complementary decoding pipelines:
@@ -20,25 +54,9 @@ We develop two complementary decoding pipelines:
 
 ---
 
-## 📂 Dataset — NinaPro DB2
+<!-- ---
 
-**Source:** [NinaPro (Non-Invasive Adaptive Prosthetics)](https://ninapro.hevs.ch/)  
-**Dataset:** *DB2 – 40 subjects performing 49 hand movements*  
-**Sensors:** 12-channel Delsys Trigno sEMG  
-**Sampling rate:** 2 kHz  
-**Duration:** ~6 seconds per repetition, 6 repetitions per gesture  
-
-**Gesture classes include:**
-- Individual finger flexions
-- Combined hand grasps (spherical, lateral, cylindrical)
-- Wrist and finger movements
-- Rest state (T0)
-
-Data files are distributed as `.mat` (MATLAB) files per subject.
-
----
-
-## ⚙️ Methods
+## Methods
 
 ### 1️⃣ Preprocessing
 - Band-pass filter (20–450 Hz)
@@ -66,4 +84,4 @@ Data files are distributed as `.mat` (MATLAB) files per subject.
 - Stratified K-Fold and subject-wise cross-validation  
 - Metrics: Accuracy, F1-score, Cohen’s κ  
 - Visualization: Confusion matrices and t-SNE embeddings of learned features  
-
+ -->
