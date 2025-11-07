@@ -1,10 +1,12 @@
 # Functions to load data and prepreocess EMG signals from the Ninapro database.
 
-from typing import Tuple, Optional
+from dataclasses import dataclass
+from typing import Tuple, Optional, List
 import numpy as np
 from pathlib import Path
 from scipy.io import loadmat
 from scipy.signal import butter, filtfilt
+from dataclasses import dataclass
 
 def load_ninapro_data(subject_number: int, exercise_number: int, dataPath: Path) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
     """
@@ -103,13 +105,45 @@ def majority_label_in_window(stim_win, majority_thr=0.90):
     return None, frac
 
 
-def epoch_data_sliding_window(dataPath: str, Fs: float, exercise_number: int, subjects: list, window_s: float, step_s: float, majority_threshold: float, include_rest: bool) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
+@dataclass
+class EpochMeta:
+    Fs: float # Sampling frequency
+    n_channels: int # Number of EMG channels
+    gesture_ids_full: np.ndarray # All gesture IDs present in the dataset
+    win: int # Window length in samples
+    step: int # Step size in samples
+    win_s: float # Window length in seconds
+    step_s: float # Step size in seconds
+    exercise_number: int # Exercise number
+    subjects: np.ndarray # subject used
+    include_rest: bool # Whether rest windows are included
+    majority_threshold: float # Majority threshold for labeling
+
+
+@dataclass
+class EpochDataset:
+    X: np.ndarray # shape (N, C, L), extracted epochs
+    y: np.ndarray # shape (N,), labels for each epoch
+    subject_ids: np.ndarray # shape (N,), subject IDs for each epoch
+    rep_ids: np.ndarray # shape (N,), repetition IDs for each epoch
+    t0: np.ndarray # shape (N,), start time of each epoch
+    coverage: np.ndarray # shape (N,), majority fraction used for labeling
+    meta: EpochMeta
+
+def epoch_data_sliding_window(
+        dataPath: str, 
+        exercise_number: int, 
+        subjects: List[int], 
+        window_s: float, 
+        step_s: float, 
+        majority_threshold: float, 
+        include_rest: bool
+        ) -> EpochDataset:
     """
     Extract epochs from EMG data using sliding window approach with majority voting for labels.
     
     Parameters:
     dataPath (str): Path to the Ninapro database.
-    Fs (float): Sampling frequency of the EMG data.
     exercise_number (int): Exercise number to load data from.
     subjects (list): List of subject numbers to process.
     window_s (float): Window length in seconds.
@@ -126,6 +160,8 @@ def epoch_data_sliding_window(dataPath: str, Fs: float, exercise_number: int, su
     - coverage: np.ndarray, shape (num_epochs,), majority fraction used for labeling
     - gesture_ids_full: np.ndarray, all gesture IDs present in the dataset
     - n_channels: int, number of EMG channels
+    - win: int, window length in samples
+    - step: int, step size in samples
     """
 
     # Probe dataset to get Fs, C, gesture IDs
@@ -159,7 +195,7 @@ def epoch_data_sliding_window(dataPath: str, Fs: float, exercise_number: int, su
             raise ValueError(f"Inconsistent Fs: subject {subject_number} -> {Fs_check} vs {Fs}")
 
         # preprocess once for all channels
-        emg_clean = preprocess_all_channels(emg, Fs)   # (N, C)
+        emg_clean = preprocess_all_channels(emg, Fs, lowcut=20.0, highcut=450.0, smoothen=False, smooth_window=0, normalize=True)   # (N, C)
 
         N = emg_clean.shape[0]
         # slide [start, start+win)
@@ -194,7 +230,7 @@ def epoch_data_sliding_window(dataPath: str, Fs: float, exercise_number: int, su
     # Stack and save for this window length
     if len(X_list) == 0:
         print(f"No windows kept for T={int(window_s*1000)} ms; skipping save.")
-        return None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None
 
     X = np.stack(X_list, axis=0)                    # (N, C, L)
     y = np.array(y_list, dtype=int)                 # (N,)
@@ -210,5 +246,21 @@ def epoch_data_sliding_window(dataPath: str, Fs: float, exercise_number: int, su
     rep_ids = rep_ids.astype(np.int8, copy=False)
     t0 = t0.astype(np.float32, copy=False)
     coverage = coverage.astype(np.float32, copy=False)
-    return X, y, subject_ids, rep_ids, t0, coverage, gesture_ids_full, n_channels
+
+    meta = EpochMeta(
+        Fs=Fs,
+        n_channels=n_channels,
+        gesture_ids_full=gesture_ids_full,
+        win=win,
+        step=step,
+        win_s=window_s,
+        step_s=step_s,
+        exercise_number=exercise_number,
+        subjects=np.array(subjects, dtype=np.int16),
+        include_rest=include_rest,
+        majority_threshold=majority_threshold
+    )
+    dataset = EpochDataset(X, y, subject_ids, rep_ids, t0, coverage, meta)
+
+    return dataset
 
