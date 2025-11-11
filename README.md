@@ -4,7 +4,7 @@ This repository implements an end-to-end ML and deep learning pipeline for decod
 
 The goal of this project is to reproduce and extend classical EMG decoding workflows from preprocessing and feature extraction to deep neural network classifiers and benchmark them on gesture recognition accuracy.
 
-![Gesture Overlay - Subject 1](results/emg_signals_subject1_exercise1.png)
+![Gesture Overlay - Subject 1](results/figures/emg_signals_subject1_exercise1.png)
 
 ---
 
@@ -42,7 +42,7 @@ The cyberglove signal corresponds to raw data from the cyberglove sensors, which
 - **Force (6 columns):** force recorded during the third exercise
 - **forcecal (2 x 6 values):** the force sensors calibration values, corresponding to the minimal and the maximal force
 
-![Gesture Overlay - Subject 1 - Channel 1](results/gesture_overlay_subject1_channel1.png)
+![Gesture Overlay - Subject 1 - Channel 1](results/figures/gesture_overlay_subject1_channel1.png)
 ---
 
 ## Project Overview
