@@ -66,8 +66,14 @@ class CNN_model(nn.Module):
         self.batchnorm2 = nn.BatchNorm1d(conv2out)
         self.dropout2 = nn.Dropout(p=p_dropout2)
 
+        # Third conv layer
+        conv3out = conv2out  # keeping same number of channels
+        self.conv3 = nn.Conv1d(in_channels=conv2out, out_channels=conv3out, kernel_size=kernel_size2, padding=kernel_size2//2)
+        self.batchnorm3 = nn.BatchNorm1d(conv3out)
+        self.dropout3 = nn.Dropout(p=p_dropout2)
+
         self.global_avg_pool = nn.AdaptiveAvgPool1d(1) # output size (B, conv1out, 1) so for each filter we have 1 value
-        self.fc = nn.Linear(conv2out, numClasses) # final classification layer
+        self.fc = nn.Linear(conv3out, numClasses) # final classification layer
 
     def forward(self, x):
         x = self.conv1(x)
@@ -75,10 +81,16 @@ class CNN_model(nn.Module):
         x = self.activation(x)
         x = self.dropout(x)
         x = self.pool1(x)
+
         x = self.conv2(x)
         x = self.batchnorm2(x)
         x = self.activation(x)
         x = self.dropout2(x)
+
+        x = self.conv3(x)
+        x = self.batchnorm3(x)
+        x = self.activation(x)
+        x = self.dropout3(x)
 
         x = self.global_avg_pool(x) # (B, conv1out, 1)
         x = x.squeeze(-1)           # (B, conv1out)
