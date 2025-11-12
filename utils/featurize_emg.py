@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Iterable, Sequence, Tuple, Optional
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 
 def emg_td_features(
@@ -111,3 +112,16 @@ def features_to_df(
                 }
             ))
     return pd.concat(parts, ignore_index=True)
+
+
+def perform_PCA_on_features(emg_features, n_components=2):
+    n_samples, n_channels, n_features = emg_features.shape
+    emg_features_reshaped = emg_features.reshape(n_samples, n_channels * n_features)
+
+    # Standardize features before PCA
+    scaler = StandardScaler()
+    emg_features_reshaped = scaler.fit_transform(emg_features_reshaped)
+
+    pca = PCA(n_components=n_components)
+    pca_result = pca.fit_transform(emg_features_reshaped)
+    return pca_result

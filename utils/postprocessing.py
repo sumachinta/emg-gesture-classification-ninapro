@@ -2,15 +2,20 @@
 
 import numpy as np
 
+def keep_indices_excluding_rest(y: np.ndarray, rest_class: int = 0) -> np.ndarray:
+    """Return indices of examples whose label != rest_class (no data copy)."""
+    # y==0 is the rest class; using !=0 and .nonzero is very fast
+    return np.flatnonzero(y != rest_class)
+
 def exclude_rest_class(X: np.ndarray, y: np.ndarray, subject_ids: np.ndarray, rep_ids: np.ndarray):
     " Exclude rest class (0) from dataset."
-    rest_class = 0
-    select_class_mask = (y != rest_class)
-    X = X[select_class_mask]
-    y = y[select_class_mask]
-    subject_ids = subject_ids[select_class_mask]
-    rep_ids = rep_ids[select_class_mask]
+    keep_indices = keep_indices_excluding_rest(y, rest_class=0)
+    X = X[keep_indices]
+    y = y[keep_indices]
+    subject_ids = subject_ids[keep_indices]
+    rep_ids = rep_ids[keep_indices]
     return X, y, subject_ids, rep_ids
+
 
 def split_data_by_subject(subject_ids: np.ndarray, train_percent: float = 0.7, test_percent: float = 0.15, val_percent: float = 0.15):
 
