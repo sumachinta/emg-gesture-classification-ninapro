@@ -128,9 +128,10 @@ class EpochDataset:
     rep_ids: np.ndarray # shape (N,), repetition IDs for each epoch
     t0: np.ndarray # shape (N,), start time of each epoch
     coverage: np.ndarray # shape (N,), majority fraction used for labeling
+    lag_s: np.ndarray # shape (N,), lag from segment (rest/gesture) start in seconds
     meta: EpochMeta
 
-def epoch_data_sliding_window(
+def epoch_data(
         dataPath: str, 
         exercise_number: int, 
         subjects: List[int], 
@@ -185,12 +186,12 @@ def epoch_data_sliding_window(
     rep_list = []           # repetition id (if determinable by majority)
     t0_list = []            # window start time (seconds, for traceability)
     coverage_list = []      # majority fraction used for label
+    lag_s_list = []         # lag from segment start (seconds)
 
     for subject_number in subjects:
         print(f"[T={int(window_s*1000)} ms] Processing subject {subject_number}...")
         emg, stimulus, repetition, time, Fs_check = load_ninapro_data(
-            subject_number=subject_number, exercise_number=exercise_number, dataPath=dataPath
-        )
+            subject_number=subject_number, exercise_number=exercise_number, dataPath=dataPath)
         if Fs_check != Fs:
             raise ValueError(f"Inconsistent Fs: subject {subject_number} -> {Fs_check} vs {Fs}")
 
@@ -198,6 +199,18 @@ def epoch_data_sliding_window(
         emg_clean = preprocess_all_channels(emg, Fs, lowcut=20.0, highcut=450.0, smoothen=False, smooth_window=0, normalize=True)   # (N, C)
 
         N = emg_clean.shape[0]
+
+        # lag from gesture/rest segment start (in seconds) per sample
+        # We reset the lag at each change in stimulus or repetition change
+        # This gives us a measure of how far into the gesture/rest we are at each sample
+        lag_s_all = np.zeros(N, dtype=np.float32)
+        segment_start_time = float(time[0])
+        lag_s_all[0] = 0.0
+        for i in range(1, N):
+            if (stimulus[i] != stimulus[i-1]) or (repetition[i] != repetition[i-1]):
+                segment_start_time = float(time[i]) # new segment: rest or gesture (new rep)
+            lag_s_all[i] = float(time[i]) - segment_start_time
+
         # slide [start, start+win)
         for start in range(0, N - win + 1, step):
             stop = start + win
@@ -226,11 +239,12 @@ def epoch_data_sliding_window(
             rep_list.append(rep_id)
             t0_list.append(float(time[start]))
             coverage_list.append(float(frac))
+            lag_s_list.append(float(lag_s_all[start]))
 
     # Stack and save for this window length
     if len(X_list) == 0:
         print(f"No windows kept for T={int(window_s*1000)} ms; skipping save.")
-        return None, None, None, None, None, None, None, None, None, None
+        return None, None, None, None, None, None, None, None, None, None, None
 
     X = np.stack(X_list, axis=0)                    # (N, C, L)
     y = np.array(y_list, dtype=int)                 # (N,)
@@ -238,6 +252,7 @@ def epoch_data_sliding_window(
     rep_ids = np.array(rep_list, dtype=int)         # (N,)
     t0 = np.array(t0_list, dtype=float)             # (N,)
     coverage = np.array(coverage_list, dtype=float) # (N,)
+    lag_s = np.array(lag_s_list, dtype=float)       # (N,)
 
     # Cast to float32 first (halves size, speeds I/O)
     X = X.astype(np.float32, copy=False)
@@ -246,6 +261,7 @@ def epoch_data_sliding_window(
     rep_ids = rep_ids.astype(np.int8, copy=False)
     t0 = t0.astype(np.float32, copy=False)
     coverage = coverage.astype(np.float32, copy=False)
+    lag_s = lag_s.astype(np.float32, copy=False)
 
     meta = EpochMeta(
         Fs=Fs,
@@ -260,7 +276,7 @@ def epoch_data_sliding_window(
         include_rest=include_rest,
         majority_threshold=majority_threshold
     )
-    dataset = EpochDataset(X, y, subject_ids, rep_ids, t0, coverage, meta)
+    dataset = EpochDataset(X, y, subject_ids, rep_ids, t0, coverage, lag_s, meta)
 
     return dataset
 
